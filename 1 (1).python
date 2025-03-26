@@ -1,0 +1,40 @@
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
+import requests
+import os
+
+app = Flask(__name__)
+CORS(app)  # CORS को अनुमति देने के लिए
+
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+AI_API_URL = "https://your-ai-api.com/generate-video"  # AI API URL डालें
+AI_API_KEY = "your-api-key"  # अपनी API कुंजी यहाँ डालें
+
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "कोई फ़ाइल अपलोड नहीं की गई"}), 400
+
+    image = request.files['image']
+    image_path = os.path.join(UPLOAD_FOLDER, image.filename)
+    image.save(image_path)
+
+    # AI API को इमेज भेजें
+    files = {'image': open(image_path, 'rb')}
+    headers = {"Authorization": f"Bearer {AI_API_KEY}"}
+
+    response = requests.post(AI_API_URL, files=files, headers=headers)
+
+    if response.status_code == 200:
+        video_path = os.path.join(UPLOAD_FOLDER, "output.mp4")
+        with open(video_path, "wb") as video_file:
+            video_file.write(response.content)
+
+        return send_file(video_path, mimetype="video/mp4")
+
+    return jsonify({"error": "AI वीडियो जनरेट करने में समस्या आई"}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
